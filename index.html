@@ -26,6 +26,7 @@ text{fill:#000;font-size:11px}.tip{position:fixed;pointer-events:none;background
 <div class="card"><h2>Which months earn most?</h2><p class="n">Average commission by calendar month, selected years</p><div id="season"></div></div>
 <div class="card"><h2>Where 2024 income came from</h2><p class="n">Commission by service type, from the 2024 monthly Excel files</p><div style="margin-bottom:6px"><select id="m24"></select></div><div id="src"></div></div>
 <div class="card"><h2>Deductions: TDS, GST, SAVE</h2><p class="n">Monthly, available from Apr 2023</p><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
+<div class="card full"><h2>Before and after deductions</h2><p class="n">What was earned, what was cut (GST, SAVE, TDS) and what was paid out, per financial year</p><div class="leg"><span><i style="background:var(--c3)"></i>Paid out (after cuts)</span><span><i style="background:var(--c2)"></i>Deducted</span></div><div id="ba"></div><div style="overflow:auto;margin-top:10px"><table id="batbl"></table></div></div>
 <div class="card full"><h2>Yearly summary</h2><div style="overflow:auto"><table id="tbl"></table></div></div>
 <div class="card full note" id="notes"></div>
 </div></div><div class="tip" id="tip"></div>
@@ -59,7 +60,7 @@ function render(){
  else if(sel==='all'){const T=Object.values(fyTot).reduce((a,f)=>({c:a.c+f.com,d:a.d+f.ded,p:a.p+f.paid}),{c:0,d:0,p:0});dedHtml=`<div class="kpi"><div class="l">Deductions</div><div class="v">&#8377;${inr(T.d)}</div><div class="s">${(T.d/T.c*100).toFixed(1)}% of commission</div></div>`;netHtml=`<div class="kpi"><div class="l">Paid out</div><div class="v">&#8377;${inr(T.p)}</div><div class="s">${(T.p/T.c*100).toFixed(1)}% of commission</div></div>`}
  let chg='';const c=cmp.value;if(c!=='none'&&sel!=='all'){const o=rowsFor(c),ot=o.reduce((a,r)=>a+r[1],0);const same=rows.length===o.length;const d=(total/rows.length)-(ot/o.length);chg=`<div class="kpi"><div class="l">Avg month: ${fyName(+sel)} vs ${fyName(+c)}</div><div class="v" style="color:${d>=0?'#15803d':'#c0392b'}">${d>=0?'+':''}${inr(d)}</div><div class="s" style="color:#000;font-weight:700;font-size:13px">&#8377;${inr(Math.abs(d))} ${d>=0?'MORE':'LESS'} per month (${Math.abs((total/rows.length)/(ot/o.length)*100-100).toFixed(1)}% ${d>=0?'higher':'lower'})</div></div>`}
  document.getElementById('kpis').innerHTML=`<div class="kpi"><div class="l">Total commission</div><div class="v">&#8377;${inr(total)}</div><div class="s">${n} months with commission</div></div>`+dedHtml+netHtml+`<div class="kpi"><div class="l">Average per month</div><div class="v">&#8377;${inr(total/n)}</div></div><div class="kpi"><div class="l">Best month</div><div class="v">&#8377;${inr(best[1])}</div><div class="s">${fmtM(best[0])}</div></div><div class="kpi"><div class="l">Lowest month</div><div class="v">&#8377;${inr(worst[1])}</div><div class="s">${fmtM(worst[0])}</div></div>`+chg;
- trend(rows,sel);fyChart();season();srcChart();dedChart();table();
+ trend(rows,sel);fyChart();season();srcChart();dedChart();table();baView();
 }
 function trend(rows,sel){
  document.getElementById('trendN').textContent=(sel==='all'?'All months, Jun 2018 onward':'Financial year '+fyName(+sel)+', Apr to Mar')+' - hover a bar for the exact amount';
@@ -93,6 +94,25 @@ function dedChart(){
  const{s,W,h}=chartBox('dedc',280);const l=46,r=6,t=10,b=28;const tot=k=>Object.values(D.deductions[k]).reduce((a,x)=>a+x,0);const max=Math.max(...ks.map(tot))*1.1;axisY(s,W,h,max,l,r,t,b,short);const bw=(W-l-r)/ks.length;
  ks.forEach((k,i)=>{let y=h-b;[['GST','--c5'],['SAVE','--c4'],['TDS','--c2']].forEach(([t2,c])=>{const v=D.deductions[k][t2]||0,bh=(h-t-b)*v/max;y-=bh;const rc=el('rect',{x:l+i*bw+bw*.12,y,width:bw*.76,height:bh,fill:css(c)});rc.addEventListener('mousemove',e=>showTip(e,`<b>${MN[+k.slice(5)-1]} ${k.slice(0,4)}</b><br>${t2}: &#8377;${inr2(v)}<br>Total: &#8377;${inr2(tot(k))}`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc)});
   if(ks.length<=14||i%Math.ceil(ks.length/12)===0)s.appendChild(el('text',{x:l+i*bw+bw/2,y:h-10,'text-anchor':'middle'},MN[+k.slice(5)-1]+(ks.length>14?" '"+k.slice(2,4):'')))});
+}
+function baSplit(y){const o={GST:0,SAVE:0,TDS:0},ks=Object.keys(D.deductions).filter(k=>fyOf(k)===y);ks.forEach(k=>{for(const t in o)o[t]+=D.deductions[k][t]||0});return ks.length?o:null}
+function baView(){
+ const ys=Object.keys(fyTot).map(Number).sort();const box=document.getElementById('ba');box.innerHTML='';
+ const W=Math.max(300,box.clientWidth),rh=30,h=ys.length*rh+6;const s=el('svg',{viewBox:`0 0 ${W} ${h}`});box.appendChild(s);
+ const lw=112,bw=W-lw-8;
+ ys.forEach((y,i)=>{const f=fyTot[y],kept=f.paid/f.com,cut=1-kept,yy=i*rh+3;
+  s.appendChild(el('text',{x:0,y:yy+17,style:'fill:'+css('--ink')},f.name));
+  const r1=el('rect',{x:lw,y:yy+3,width:Math.max(1,bw*kept),height:18,rx:3,fill:css('--c3')});
+  const r2=el('rect',{x:lw+bw*kept,y:yy+3,width:Math.max(1,bw*cut),height:18,rx:3,fill:css('--c2')});
+  [[r1,'Paid out',f.paid],[r2,'Deducted',f.ded]].forEach(([r,n,v])=>{r.addEventListener('mousemove',e=>showTip(e,`<b>${f.name}</b><br>${n}: &#8377;${inr2(v)}<br>Commission: &#8377;${inr2(f.com)}`));r.addEventListener('mouseleave',hideTip);s.appendChild(r)});
+  s.appendChild(el('text',{x:lw+6,y:yy+16,style:'fill:#fff;font-weight:700'},(kept*100).toFixed(1)+'% kept'));
+ });
+ let h2='<tr><th>Year</th><th>Commission (before)</th><th>GST</th><th>SAVE</th><th>TDS</th><th>Total deducted</th><th>Paid out (after)</th><th>% deducted</th></tr>';
+ ys.forEach(y=>{const f=fyTot[y],sp=baSplit(y),c=t=>sp?inr2(sp[t]):'-';
+  h2+=`<tr><td>${f.name}</td><td>${inr2(f.com)}</td><td>${c('GST')}</td><td>${c('SAVE')}</td><td>${c('TDS')}</td><td>${inr2(f.ded)}</td><td>${inr2(f.paid)}</td><td>${(f.ded/f.com*100).toFixed(1)}%</td></tr>`});
+ const T=ys.reduce((a,y)=>({c:a.c+fyTot[y].com,d:a.d+fyTot[y].ded,p:a.p+fyTot[y].paid}),{c:0,d:0,p:0});
+ h2+=`<tr><td><b>All years</b></td><td><b>${inr2(T.c)}</b></td><td></td><td></td><td></td><td><b>${inr2(T.d)}</b></td><td><b>${inr2(T.p)}</b></td><td><b>${(T.d/T.c*100).toFixed(1)}%</b></td></tr>`;
+ document.getElementById('batbl').innerHTML=h2;
 }
 function table(){
  const ys=Object.keys(fyTot).map(Number).sort();let h='<tr><th>Year</th><th>Commission</th><th>Deductions</th><th>Paid</th><th>Months</th><th>Avg / month</th></tr>';
