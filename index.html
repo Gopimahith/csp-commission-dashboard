@@ -25,7 +25,7 @@ text{fill:#000;font-size:11px}.tip{position:fixed;pointer-events:none;background
 <div class="card"><h2>Year by year</h2><p class="n">Commission, deductions and paid per financial year (printed statement totals)</p><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Deductions</span><span><i style="background:var(--c3)"></i>Paid</span></div><div id="fyc"></div></div>
 <div class="card"><h2>Which months earn most?</h2><p class="n">Average commission by calendar month, selected years</p><div id="season"></div></div>
 <div class="card full"><h2>Where income came from</h2><p class="n">Commission by service type, from the monthly Excel files</p><div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap"><select id="ysrc"><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select><select id="m24"></select></div><div id="src"></div></div>
-<div class="card full"><h2>Monthly commission and deductions</h2><p class="n" id="dedn">Monthly detail is available from Apr 2023; earlier statements show yearly totals only</p><div class="kpis" id="dedk" style="margin:8px 0"></div><h3 style="font-size:14px;margin:12px 0 2px">Commission and total deducted, month by month</h3><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Total deducted</span></div><div id="dedm"></div><h3 style="font-size:14px;margin:12px 0 2px">GST, SAVE and TDS, month by month</h3><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
+<div class="card full"><h2>Monthly commission and deductions</h2><p class="n" id="dedn">Monthly detail is available from Apr 2023; earlier statements show yearly totals only</p><div style="margin:6px 0"><select id="dedy"></select></div><div class="kpis" id="dedk" style="margin:8px 0"></div><h3 style="font-size:14px;margin:12px 0 2px">Commission and total deducted, month by month</h3><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Total deducted</span></div><div id="dedm"></div><h3 style="font-size:14px;margin:12px 0 2px">GST, SAVE and TDS, month by month</h3><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
 <div class="card full"><h2>Before and after deductions</h2><p class="n">What was earned, what was cut (GST, SAVE, TDS) and what was paid out, per financial year</p><div class="leg"><span><i style="background:var(--c3)"></i>Paid out (after cuts)</span><span><i style="background:var(--c2)"></i>Deducted</span></div><div id="ba"></div><div style="overflow:auto;margin-top:10px"><table id="batbl"></table></div></div>
 <div class="card full note" id="notes"></div>
 </div></div><div class="tip" id="tip"></div>
@@ -95,7 +95,7 @@ function mbars(id,ks,series){
   if(ks.length<=14||i%Math.ceil(ks.length/12)===0)s.appendChild(el('text',{x:l+i*bw+bw/2,y:h-10,'text-anchor':'middle'},MN[+k.slice(5)-1]+(ks.length>14?" '"+k.slice(2,4):'')))});
 }
 function dedChart(){
- const ks=Object.keys(D.deductions).sort().filter(k=>{const y=fy.value;return y==='all'||fyOf(k)===+y});
+ const ks=Object.keys(D.deductions).sort().filter(k=>{const y=dedy.value;return y==='all'||fyOf(k)===+y});
  const kp=document.getElementById('dedk');
  if(!ks.length){kp.innerHTML='<p class="n">Monthly deduction detail is only available from Apr 2023. Pick 2023-24 or later, or "All years".</p>';document.getElementById('dedm').innerHTML='';document.getElementById('dedc').innerHTML='';return}
  const cm={};D.commission.forEach(([k,v])=>cm[k]=v);
@@ -127,5 +127,6 @@ function baView(){
  document.getElementById('batbl').innerHTML=h2;
 }
 document.getElementById('notes').innerHTML='<b>About this data</b><br>This is a demo with <b>sample data</b>: real monthly commission statements were read, then every amount was multiplied by a fixed factor and all names and IDs removed, so the shapes and trends are realistic but the amounts are not real. In the private version, each month matched the printed statement totals. Yearly deductions and paid amounts are statement totals; monthly deduction detail starts Apr 2023. the last year covers Apr to Oct only.';
+const dedy=document.getElementById('dedy');dedy.innerHTML='<option value="all">All years (Apr 2023 onward)</option>'+[...new Set(Object.keys(D.deductions).map(fyOf))].sort().map(y=>`<option value="${y}">${fyName(y)}</option>`).join('');dedy.onchange=dedChart;
 fy.onchange=render;cmp.onchange=render;addEventListener('resize',render);render();
 </script></body></html>
