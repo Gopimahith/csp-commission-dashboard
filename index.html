@@ -25,7 +25,7 @@ text{fill:#000;font-size:11px}.tip{position:fixed;pointer-events:none;background
 <div class="card"><h2>Year by year</h2><p class="n">Commission, deductions and paid per financial year (printed statement totals)</p><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Deductions</span><span><i style="background:var(--c3)"></i>Paid</span></div><div id="fyc"></div></div>
 <div class="card"><h2>Which months earn most?</h2><p class="n">Average commission by calendar month, selected years</p><div id="season"></div></div>
 <div class="card full"><h2>Where income came from</h2><p class="n">Commission by service type, from the monthly Excel files</p><div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap"><select id="ysrc"><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select><select id="m24"></select></div><div id="src"></div></div>
-<div class="card full"><h2>Monthly commission and deductions</h2><p class="n" id="dedn">Monthly detail is available from Apr 2023; earlier statements show yearly totals only</p><div style="margin:6px 0"><select id="dedy"></select></div><div class="kpis" id="dedk" style="margin:8px 0"></div><h3 style="font-size:14px;margin:12px 0 2px">Commission and total deducted, month by month</h3><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Total deducted</span></div><div id="dedm"></div><h3 style="font-size:14px;margin:12px 0 2px">GST, SAVE and TDS, month by month</h3><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
+<div class="card full"><h2>Monthly commission and deductions</h2><p class="n" id="dedn">Monthly detail is available from Apr 2023; earlier statements show yearly totals only. This section has its own year selector, separate from the filter at the top of the page.</p><div style="margin:6px 0"><select id="dedy"></select></div><div class="kpis" id="dedk" style="margin:8px 0"></div><h3 style="font-size:14px;margin:12px 0 2px">Commission and total deducted, month by month</h3><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Total deducted</span></div><div id="dedm"></div><h3 style="font-size:14px;margin:12px 0 2px">GST, SAVE and TDS, month by month</h3><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
 <div class="card full"><h2>Before and after deductions</h2><p class="n">What was earned, what was cut (GST, SAVE, TDS) and what was paid out, per financial year</p><div class="leg"><span><i style="background:var(--c3)"></i>Paid out (after cuts)</span><span><i style="background:var(--c2)"></i>Deducted</span></div><div id="ba"></div><div style="overflow:auto;margin-top:10px"><table id="batbl"></table></div></div>
 <div class="card full note" id="notes"></div>
 </div></div><div class="tip" id="tip"></div>
@@ -36,6 +36,7 @@ const inr=x=>Math.round(x).toLocaleString('en-IN');const inr2=x=>x.toLocaleStrin
 const fyOf=m=>{const y=+m.slice(0,4),mo=+m.slice(5);return mo>=4?y:y-1};const fyName=y=>y+'-'+String(y+1).slice(2);
 const years=[...new Set(D.commission.map(r=>fyOf(r[0])))].sort();
 const fyTot={};for(const k in D.fy){fyTot[+k.slice(0,4)]={name:k,com:D.fy[k][0],ded:D.fy[k][1],paid:D.fy[k][2]}}
+const nmax=m=>{const raw=m/4,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p,st=(f<=1?1:f<=2?2:f<=5?5:10)*p;return st*4};
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const tip=document.getElementById('tip');
 function showTip(e,h){tip.innerHTML=h;tip.style.display='block';const w=tip.offsetWidth;tip.style.left=Math.min(innerWidth-w-8,e.clientX+12)+'px';tip.style.top=(e.clientY+14)+'px'}
@@ -63,7 +64,7 @@ function render(){
 }
 function trend(rows,sel){
  document.getElementById('trendN').textContent=(sel==='all'?'All months, Jun 2018 onward':'Financial year '+fyName(+sel)+', Apr to Mar')+' - hover a bar for the exact amount';
- const{s,W,h}=chartBox('trend',280);const l=46,r=8,t=10,b=28;const max=Math.max(...rows.map(x=>x[1]))*1.1;axisY(s,W,h,max,l,r,t,b,short);
+ const{s,W,h}=chartBox('trend',280);const l=46,r=8,t=10,b=28;let max=Math.max(...rows.map(x=>x[1]))*1.1;max=nmax(max);axisY(s,W,h,max,l,r,t,b,short);
  const bw=(W-l-r)/rows.length;const avg=rows.reduce((a,x)=>a+x[1],0)/rows.length;
  rows.forEach((x,i)=>{const bh=(h-t-b)*x[1]/max,xx=l+i*bw,yy=h-b-bh;const rect=el('rect',{x:xx+bw*.12,y:yy,width:Math.max(1,bw*.76),height:bh,rx:2,fill:css('--c1')});
   rect.addEventListener('mousemove',e=>showTip(e,`<b>${MN[+x[0].slice(5)-1]} ${x[0].slice(0,4)}</b><br>&#8377;${inr2(x[1])}`));rect.addEventListener('mouseleave',hideTip);s.appendChild(rect);
@@ -71,24 +72,24 @@ function trend(rows,sel){
  const ay=h-b-(h-t-b)*avg/max;s.appendChild(el('line',{x1:l,x2:W-r,y1:ay,y2:ay,stroke:css('--c6'),'stroke-dasharray':'4 3','stroke-width':1.5}));s.appendChild(el('text',{x:W-r,y:ay-4,'text-anchor':'end',style:'fill:'+css('--c6')},'average '+short(avg)));
 }
 function fyChart(){
- const ys=Object.keys(fyTot).map(Number).sort();const{s,W,h}=chartBox('fyc',280);const l=46,r=6,t=10,b=34;const max=Math.max(...ys.map(y=>fyTot[y].com))*1.1;axisY(s,W,h,max,l,r,t,b,short);
+ const ys=Object.keys(fyTot).map(Number).sort();const{s,W,h}=chartBox('fyc',280);const l=46,r=6,t=10,b=34;let max=Math.max(...ys.map(y=>fyTot[y].com))*1.1;max=nmax(max);axisY(s,W,h,max,l,r,t,b,short);
  const gw=(W-l-r)/ys.length;ys.forEach((y,i)=>{const f=fyTot[y];const ser=[['com','--c1','Commission'],['ded','--c2','Deductions'],['paid','--c3','Paid']];ser.forEach(([k,c,nm],j)=>{const bw=gw*.26,bh=(h-t-b)*f[k]/max,x=l+i*gw+gw*.1+j*bw;const rc=el('rect',{x,y:h-b-bh,width:bw*.92,height:bh,rx:2,fill:css(c)});rc.addEventListener('mousemove',e=>showTip(e,`<b>${f.name}</b><br>${nm}: &#8377;${inr(f[k])}`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc)});
  s.appendChild(el('text',{x:l+i*gw+gw/2,y:h-18,'text-anchor':'middle'},String(y).slice(2)+'-'+String(y+1).slice(2)));if(y===2026)s.appendChild(el('text',{x:l+i*gw+gw/2,y:h-6,'text-anchor':'middle'},'7 months'))});
 }
 function season(){
  const sel=fy.value;const by={};rowsFor(sel).forEach(r=>{const m=+r[0].slice(5);(by[m]=by[m]||[]).push(r[1])});
- const order=[4,5,6,7,8,9,10,11,12,1,2,3];const{s,W,h}=chartBox('season',280);const l=46,r=6,t=10,b=26;const vals=order.map(m=>by[m]?by[m].reduce((a,x)=>a+x,0)/by[m].length:0);const max=Math.max(...vals)*1.1||1;axisY(s,W,h,max,l,r,t,b,short);
+ const order=[4,5,6,7,8,9,10,11,12,1,2,3];const{s,W,h}=chartBox('season',280);const l=46,r=6,t=10,b=26;const vals=order.map(m=>by[m]?by[m].reduce((a,x)=>a+x,0)/by[m].length:0);let max=Math.max(...vals)*1.1||1;max=nmax(max);axisY(s,W,h,max,l,r,t,b,short);
  const bw=(W-l-r)/12;order.forEach((m,i)=>{const v=vals[i],bh=(h-t-b)*v/max;const rc=el('rect',{x:l+i*bw+bw*.12,y:h-b-bh,width:bw*.76,height:bh,rx:2,fill:css('--c5')});rc.addEventListener('mousemove',e=>showTip(e,`<b>${MN[m-1]}</b><br>Average &#8377;${inr(v)}<br>${(by[m]||[]).length} year(s) of data`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc);s.appendChild(el('text',{x:l+i*bw+bw/2,y:h-8,'text-anchor':'middle'},MN[m-1]))});
 }
 const m24=document.getElementById('m24'),ysrc=document.getElementById('ysrc');function fillM(){m24.innerHTML='<option value="all">Whole year '+ysrc.value+'</option>'+MN.map((m,i)=>D['events'+ysrc.value].some(e=>e[0]===i+1)?`<option value="${i+1}">${m} ${ysrc.value}</option>`:'').join('')}fillM();ysrc.onchange=()=>{fillM();srcChart()};m24.onchange=srcChart;
 function srcChart(){
  const sel=m24.value;const agg={};let tot=0;D['events'+ysrc.value].forEach(([m,t,n,a])=>{if(sel==='all'||+sel===m){agg[t]=(agg[t]||0)+a;tot+=a}});
  const list=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,10);const rowH=24;const box=document.getElementById('src');box.innerHTML='';const W=Math.max(300,box.clientWidth);const h=list.length*rowH+8;const s=el('svg',{viewBox:`0 0 ${W} ${h}`});box.appendChild(s);
- const lw=Math.min(190,W*.46),max=list[0][1];const nice=t=>t.toLowerCase().replace(/(^|\s|-)\w/g,c=>c.toUpperCase()).replace('Aeps','AePS').replace('Pmjjby','PMJJBY').replace('Pmsby','PMSBY').replace('Apy','APY').replace('Ekyc','eKYC').replace('Onus','On-us');
+ const lw=Math.min(190,W*.46),max=list[0][1];const nice=t=>t.toLowerCase().replace(/(^|\s|-)\w/g,c=>c.toUpperCase()).replace('Aeps','AePS').replace('Dfs','DFS').replace('Pmjjby','PMJJBY').replace('Pmsby','PMSBY').replace('Apy','APY').replace('Ekyc','eKYC').replace('Onus','On-us');
  list.forEach(([t,a],i)=>{const y=i*rowH+4,bw=(W-lw-70)*a/max;s.appendChild(el('text',{x:0,y:y+15,style:'fill:'+css('--ink')},nice(t).slice(0,30)));const rc=el('rect',{x:lw,y:y+3,width:Math.max(2,bw),height:14,rx:3,fill:css('--c1')});rc.addEventListener('mousemove',e=>showTip(e,`<b>${nice(t)}</b><br>&#8377;${inr2(a)}<br>${(a/tot*100).toFixed(1)}% of ${sel==='all'?ysrc.value:MN[sel-1]} commission`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc);s.appendChild(el('text',{x:lw+bw+5,y:y+15},short(a)+' ('+(a/tot*100).toFixed(0)+'%)'))});
 }
 function mbars(id,ks,series){
- const{s,W,h}=chartBox(id,260);const l=46,r=6,t=10,b=28;const max=Math.max(...ks.flatMap(k=>series.map(x=>x[2](k))))*1.1;axisY(s,W,h,max,l,r,t,b,short);
+ const{s,W,h}=chartBox(id,260);const l=46,r=6,t=10,b=28;let max=Math.max(...ks.flatMap(k=>series.map(x=>x[2](k))))*1.1;max=nmax(max);axisY(s,W,h,max,l,r,t,b,short);
  const bw=(W-l-r)/ks.length,n=series.length;
  ks.forEach((k,i)=>{series.forEach(([nm,c,f],j)=>{const v=f(k),bh=(h-t-b)*v/max;const rc=el('rect',{x:l+i*bw+bw*.1+j*(bw*.8/n),y:h-b-bh,width:Math.max(1,bw*.8/n-1),height:bh,rx:1,fill:css(c)});
    rc.addEventListener('mousemove',e=>showTip(e,`<b>${MN[+k.slice(5)-1]} ${k.slice(0,4)}</b><br>${nm}: &#8377;${inr2(v)}`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc)});
