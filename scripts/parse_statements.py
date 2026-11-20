@@ -1,7 +1,16 @@
-import re,glob,json,collections
+"""Step 2: parse the OCR text and check every year against the totals printed on the statement.
+
+Usage:  python scripts/parse_statements.py [folder_with_ocr_text]
+Reads xc<year>-*.txt (from ocr_statements.py), prints one reconciliation line per year
+(parsed sum vs printed total for commission, deductions and paid) and writes parsed.json.
+A year whose parsed sum differs from the printed total has an OCR misread: fix it against the page image.
+"""
+import re,glob,json,collections,os,sys
+folder=sys.argv[1] if len(sys.argv)>1 else '.'
+years=sorted({int(re.search(r'xc(\d{4})-',f).group(1)) for f in glob.glob(os.path.join(folder,'xc20*-*.txt'))})
 out={}
-for y in range(2018,2026):
-    txt="\n".join(open(f).read() for f in sorted(glob.glob(f'xc{y}-*.txt')))
+for y in years:
+    txt="\n".join(open(f).read() for f in sorted(glob.glob(os.path.join(folder,f'xc{y}-*.txt'))))
     com=[];ded=[];paid=[];stated={}
     section=None
     for ln in txt.splitlines():
@@ -26,4 +35,4 @@ for y in range(2018,2026):
             if m and 'Commission' not in s and 'Deducation' not in s: stated['paid']=float(m.group(1))
     out[y]=dict(com=com,ded=ded,paid=paid,stated=stated)
     print(y,'com',len(com),round(sum(c[2] for c in com),2),stated.get('com'),'| ded',len(ded),round(sum(d[2] for d in ded),2),stated.get('ded'),'| paid',len(paid),round(sum(p[3] for p in paid),2),stated.get('paid'))
-json.dump(out,open('parsed.json','w'))
+json.dump(out,open(os.path.join(folder,'parsed.json'),'w'))
