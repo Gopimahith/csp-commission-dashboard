@@ -27,7 +27,6 @@ text{fill:#000;font-size:11px}.tip{position:fixed;pointer-events:none;background
 <div class="card"><h2>Where 2024 income came from</h2><p class="n">Commission by service type, from the 2024 monthly Excel files</p><div style="margin-bottom:6px"><select id="m24"></select></div><div id="src"></div></div>
 <div class="card"><h2>Deductions: TDS, GST, SAVE</h2><p class="n">Monthly, available from Apr 2023</p><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
 <div class="card full"><h2>Before and after deductions</h2><p class="n">What was earned, what was cut (GST, SAVE, TDS) and what was paid out, per financial year</p><div class="leg"><span><i style="background:var(--c3)"></i>Paid out (after cuts)</span><span><i style="background:var(--c2)"></i>Deducted</span></div><div id="ba"></div><div style="overflow:auto;margin-top:10px"><table id="batbl"></table></div></div>
-<div class="card full"><h2>Yearly summary</h2><div style="overflow:auto"><table id="tbl"></table></div></div>
 <div class="card full note" id="notes"></div>
 </div></div><div class="tip" id="tip"></div>
 <script>
@@ -60,7 +59,7 @@ function render(){
  else if(sel==='all'){const T=Object.values(fyTot).reduce((a,f)=>({c:a.c+f.com,d:a.d+f.ded,p:a.p+f.paid}),{c:0,d:0,p:0});dedHtml=`<div class="kpi"><div class="l">Deductions</div><div class="v">&#8377;${inr(T.d)}</div><div class="s">${(T.d/T.c*100).toFixed(1)}% of commission</div></div>`;netHtml=`<div class="kpi"><div class="l">Paid out</div><div class="v">&#8377;${inr(T.p)}</div><div class="s">${(T.p/T.c*100).toFixed(1)}% of commission</div></div>`}
  let chg='';const c=cmp.value;if(c!=='none'&&sel!=='all'){const o=rowsFor(c),ot=o.reduce((a,r)=>a+r[1],0);const same=rows.length===o.length;const d=(total/rows.length)-(ot/o.length);chg=`<div class="kpi"><div class="l">Avg month: ${fyName(+sel)} vs ${fyName(+c)}</div><div class="v" style="color:${d>=0?'#15803d':'#c0392b'}">${d>=0?'+':''}${inr(d)}</div><div class="s" style="color:#000;font-weight:700;font-size:13px">&#8377;${inr(Math.abs(d))} ${d>=0?'MORE':'LESS'} per month (${Math.abs((total/rows.length)/(ot/o.length)*100-100).toFixed(1)}% ${d>=0?'higher':'lower'})</div></div>`}
  document.getElementById('kpis').innerHTML=`<div class="kpi"><div class="l">Total commission</div><div class="v">&#8377;${inr(total)}</div><div class="s">${n} months with commission</div></div>`+dedHtml+netHtml+`<div class="kpi"><div class="l">Average per month</div><div class="v">&#8377;${inr(total/n)}</div></div><div class="kpi"><div class="l">Best month</div><div class="v">&#8377;${inr(best[1])}</div><div class="s">${fmtM(best[0])}</div></div><div class="kpi"><div class="l">Lowest month</div><div class="v">&#8377;${inr(worst[1])}</div><div class="s">${fmtM(worst[0])}</div></div>`+chg;
- trend(rows,sel);fyChart();season();srcChart();dedChart();table();baView();
+ trend(rows,sel);fyChart();season();srcChart();dedChart();baView();
 }
 function trend(rows,sel){
  document.getElementById('trendN').textContent=(sel==='all'?'All months, Jun 2018 onward':'Financial year '+fyName(+sel)+', Apr to Mar')+' - hover a bar for the exact amount';
@@ -113,11 +112,6 @@ function baView(){
  const T=ys.reduce((a,y)=>({c:a.c+fyTot[y].com,d:a.d+fyTot[y].ded,p:a.p+fyTot[y].paid}),{c:0,d:0,p:0});
  h2+=`<tr><td><b>All years</b></td><td><b>${inr2(T.c)}</b></td><td></td><td></td><td></td><td><b>${inr2(T.d)}</b></td><td><b>${inr2(T.p)}</b></td><td><b>${(T.d/T.c*100).toFixed(1)}%</b></td></tr>`;
  document.getElementById('batbl').innerHTML=h2;
-}
-function table(){
- const ys=Object.keys(fyTot).map(Number).sort();let h='<tr><th>Year</th><th>Commission</th><th>Deductions</th><th>Paid</th><th>Months</th><th>Avg / month</th></tr>';
- ys.forEach(y=>{const f=fyTot[y],m=D.commission.filter(r=>fyOf(r[0])===y).length;h+=`<tr><td>${f.name}</td><td>${inr2(f.com)}</td><td>${inr2(f.ded)}</td><td>${inr2(f.paid)}</td><td>${m}</td><td>${inr(f.com/m)}</td></tr>`});
- document.getElementById('tbl').innerHTML=h;
 }
 document.getElementById('notes').innerHTML='<b>About this data</b><br>This is a demo with <b>sample data</b>: real monthly commission statements were read, then every amount was multiplied by a fixed factor and all names and IDs removed, so the shapes and trends are realistic but the amounts are not real. In the private version, each month matched the printed statement totals. Yearly deductions and paid amounts are statement totals; monthly deduction detail starts Apr 2023. the last year covers Apr to Oct only.';
 fy.onchange=render;cmp.onchange=render;addEventListener('resize',render);render();
