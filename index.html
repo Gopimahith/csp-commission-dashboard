@@ -24,8 +24,8 @@ text{fill:#000;font-size:11px}.tip{position:fixed;pointer-events:none;background
 <div class="card full"><h2>Monthly commission</h2><p class="n" id="trendN"></p><div id="trend"></div></div>
 <div class="card"><h2>Year by year</h2><p class="n">Commission, deductions and paid per financial year (printed statement totals)</p><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Deductions</span><span><i style="background:var(--c3)"></i>Paid</span></div><div id="fyc"></div></div>
 <div class="card"><h2>Which months earn most?</h2><p class="n">Average commission by calendar month, selected years</p><div id="season"></div></div>
-<div class="card"><h2>Where income came from</h2><p class="n">Commission by service type, from the monthly Excel files</p><div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap"><select id="ysrc"><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select><select id="m24"></select></div><div id="src"></div></div>
-<div class="card"><h2>Deductions: TDS, GST, SAVE</h2><p class="n">Monthly, available from Apr 2023</p><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
+<div class="card full"><h2>Where income came from</h2><p class="n">Commission by service type, from the monthly Excel files</p><div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap"><select id="ysrc"><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select><select id="m24"></select></div><div id="src"></div></div>
+<div class="card full"><h2>Monthly commission and deductions</h2><p class="n" id="dedn">Monthly detail is available from Apr 2023; earlier statements show yearly totals only</p><div class="kpis" id="dedk" style="margin:8px 0"></div><h3 style="font-size:14px;margin:12px 0 2px">Commission and total deducted, month by month</h3><div class="leg"><span><i style="background:var(--c1)"></i>Commission</span><span><i style="background:var(--c2)"></i>Total deducted</span></div><div id="dedm"></div><h3 style="font-size:14px;margin:12px 0 2px">GST, SAVE and TDS, month by month</h3><div class="leg"><span><i style="background:var(--c5)"></i>GST</span><span><i style="background:var(--c4)"></i>SAVE</span><span><i style="background:var(--c2)"></i>TDS</span></div><div id="dedc"></div></div>
 <div class="card full"><h2>Before and after deductions</h2><p class="n">What was earned, what was cut (GST, SAVE, TDS) and what was paid out, per financial year</p><div class="leg"><span><i style="background:var(--c3)"></i>Paid out (after cuts)</span><span><i style="background:var(--c2)"></i>Deducted</span></div><div id="ba"></div><div style="overflow:auto;margin-top:10px"><table id="batbl"></table></div></div>
 <div class="card full note" id="notes"></div>
 </div></div><div class="tip" id="tip"></div>
@@ -87,12 +87,25 @@ function srcChart(){
  const lw=Math.min(190,W*.46),max=list[0][1];const nice=t=>t.toLowerCase().replace(/(^|\s|-)\w/g,c=>c.toUpperCase()).replace('Aeps','AePS').replace('Pmjjby','PMJJBY').replace('Pmsby','PMSBY').replace('Apy','APY').replace('Ekyc','eKYC').replace('Onus','On-us');
  list.forEach(([t,a],i)=>{const y=i*rowH+4,bw=(W-lw-70)*a/max;s.appendChild(el('text',{x:0,y:y+15,style:'fill:'+css('--ink')},nice(t).slice(0,30)));const rc=el('rect',{x:lw,y:y+3,width:Math.max(2,bw),height:14,rx:3,fill:css('--c1')});rc.addEventListener('mousemove',e=>showTip(e,`<b>${nice(t)}</b><br>&#8377;${inr2(a)}<br>${(a/tot*100).toFixed(1)}% of ${sel==='all'?ysrc.value:MN[sel-1]} commission`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc);s.appendChild(el('text',{x:lw+bw+5,y:y+15},short(a)+' ('+(a/tot*100).toFixed(0)+'%)'))});
 }
-function dedChart(){
- const ks=Object.keys(D.deductions).sort().filter(k=>{const y=fy.value;return y==='all'||fyOf(k)===+y});const box=document.getElementById('dedc');
- if(!ks.length){box.innerHTML='<p class="n">Monthly deduction detail is only available from Apr 2023. Pick 2023-24 or later, or "All years".</p>';return}
- const{s,W,h}=chartBox('dedc',280);const l=46,r=6,t=10,b=28;const tot=k=>Object.values(D.deductions[k]).reduce((a,x)=>a+x,0);const max=Math.max(...ks.map(tot))*1.1;axisY(s,W,h,max,l,r,t,b,short);const bw=(W-l-r)/ks.length;
- ks.forEach((k,i)=>{let y=h-b;[['GST','--c5'],['SAVE','--c4'],['TDS','--c2']].forEach(([t2,c])=>{const v=D.deductions[k][t2]||0,bh=(h-t-b)*v/max;y-=bh;const rc=el('rect',{x:l+i*bw+bw*.12,y,width:bw*.76,height:bh,fill:css(c)});rc.addEventListener('mousemove',e=>showTip(e,`<b>${MN[+k.slice(5)-1]} ${k.slice(0,4)}</b><br>${t2}: &#8377;${inr2(v)}<br>Total: &#8377;${inr2(tot(k))}`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc)});
+function mbars(id,ks,series){
+ const{s,W,h}=chartBox(id,260);const l=46,r=6,t=10,b=28;const max=Math.max(...ks.flatMap(k=>series.map(x=>x[2](k))))*1.1;axisY(s,W,h,max,l,r,t,b,short);
+ const bw=(W-l-r)/ks.length,n=series.length;
+ ks.forEach((k,i)=>{series.forEach(([nm,c,f],j)=>{const v=f(k),bh=(h-t-b)*v/max;const rc=el('rect',{x:l+i*bw+bw*.1+j*(bw*.8/n),y:h-b-bh,width:Math.max(1,bw*.8/n-1),height:bh,rx:1,fill:css(c)});
+   rc.addEventListener('mousemove',e=>showTip(e,`<b>${MN[+k.slice(5)-1]} ${k.slice(0,4)}</b><br>${nm}: &#8377;${inr2(v)}`));rc.addEventListener('mouseleave',hideTip);s.appendChild(rc)});
   if(ks.length<=14||i%Math.ceil(ks.length/12)===0)s.appendChild(el('text',{x:l+i*bw+bw/2,y:h-10,'text-anchor':'middle'},MN[+k.slice(5)-1]+(ks.length>14?" '"+k.slice(2,4):'')))});
+}
+function dedChart(){
+ const ks=Object.keys(D.deductions).sort().filter(k=>{const y=fy.value;return y==='all'||fyOf(k)===+y});
+ const kp=document.getElementById('dedk');
+ if(!ks.length){kp.innerHTML='<p class="n">Monthly deduction detail is only available from Apr 2023. Pick 2023-24 or later, or "All years".</p>';document.getElementById('dedm').innerHTML='';document.getElementById('dedc').innerHTML='';return}
+ const cm={};D.commission.forEach(([k,v])=>cm[k]=v);
+ const g=(k,t)=>D.deductions[k][t]||0,td=k=>g(k,'GST')+g(k,'SAVE')+g(k,'TDS');
+ const sum=f=>ks.reduce((a,k)=>a+f(k),0);const C=sum(k=>cm[k]||0),T=sum(td),G=sum(k=>g(k,'GST')),S=sum(k=>g(k,'SAVE')),X=sum(k=>g(k,'TDS'));
+ const card=(l,v,sub)=>`<div class="kpi"><div class="l">${l}</div><div class="v">&#8377;${inr(v)}</div><div class="s">${sub}</div></div>`;
+ const pc=(v,b)=>(v/b*100).toFixed(1)+'%';
+ kp.innerHTML=card('Total commission',C,ks.length+' months')+card('Total deducted',T,pc(T,C)+' of commission')+card('GST',G,pc(G,C)+' of commission &middot; '+pc(G,T)+' of deductions')+card('SAVE',S,pc(S,C)+' of commission &middot; '+pc(S,T)+' of deductions')+card('TDS',X,pc(X,C)+' of commission &middot; '+pc(X,T)+' of deductions');
+ mbars('dedm',ks,[['Commission','--c1',k=>cm[k]||0],['Total deducted','--c2',td]]);
+ mbars('dedc',ks,[['GST','--c5',k=>g(k,'GST')],['SAVE','--c4',k=>g(k,'SAVE')],['TDS','--c2',k=>g(k,'TDS')]]);
 }
 function baSplit(y){const o={GST:0,SAVE:0,TDS:0},ks=Object.keys(D.deductions).filter(k=>fyOf(k)===y);ks.forEach(k=>{for(const t in o)o[t]+=D.deductions[k][t]||0});return ks.length?o:null}
 function baView(){
